@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RH Trümmersuchassistent · v2.1</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#9a3412">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trümmersuche">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--a:#9a3412;--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mut:#6b7280;--line:#d6d3d1}
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--ink)}
+header{position:sticky;top:0;z-index:4;background:#fff;border-bottom:1px solid var(--line);padding:12px 14px}
+h1{font-size:19px;margin:0}header p{margin:3px 0 0;color:var(--mut);font-size:12px}
+nav{display:flex;gap:6px;overflow:auto;padding:9px 12px;background:#fff;border-bottom:1px solid var(--line)}
+nav button,.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 11px;font-weight:650;white-space:nowrap}
+nav button.on,.btn.primary{background:var(--a);color:#fff;border-color:var(--a)}
+main{max-width:920px;margin:auto;padding:12px}section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:11px;box-shadow:0 1px 2px #0000000d}
+h2{font-size:16px;margin:0 0 9px}h3{font-size:14px;margin:12px 0 7px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+label{display:block;font-size:12px;color:#57534e}input,select,textarea{width:100%;margin-top:4px;border:1px solid #c7c2bd;border-radius:9px;padding:9px;background:#fff;font:inherit;color:var(--ink)}textarea{resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.chip{border:1px solid #c7c2bd;background:#fff;border-radius:999px;padding:7px 9px;font-size:12px}.chip.on{background:#292524;color:#fff}
+.row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.muted{color:var(--mut);font-size:12px}.warn{background:#fff7ed;border-left:4px solid #ea580c;padding:9px;border-radius:8px}
+.good{background:#f0fdf4;border-left:4px solid #16a34a;padding:9px;border-radius:8px}.event{border-left:3px solid var(--a);padding:7px 9px;margin:6px 0;background:#fafaf9;border-radius:7px}
+.big{font-size:17px;padding:13px 16px}canvas{width:100%;height:300px;border:1px solid var(--line);border-radius:10px;background:#fff}.mapcanvas{height:420px;touch-action:manipulation}.markerlegend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin:6px 0}
+@media(max-width:650px){.grid{grid-template-columns:1fr}main{padding:8px}}
+@media print{header,nav,.noprint{display:none!important}section{display:block!important}.card{break-inside:avoid;box-shadow:none}body{background:white}}
+</style></head>
+<body><header><h1>RH Trümmersuchassistent <small>v2.1</small></h1><p>Taktik · Geruchswege · Mikrolokalisierung · Verbeller · Protokoll · offline-first · lokale Speicherung</p></header>
+<nav id="nav"></nav><main>
+<section data-page="Start">
+<div class="card"><div class="row noprint"><button class="btn primary" onclick="newCase()">＋ Neuer Vorgang</button></div><h2>Neuer Trümmersuchvorgang</h2><div class="grid">
+<label>Team / Hund<input data-k="team" placeholder="z. B. Team Mogli"></label><label>Ort / Objekt<input data-k="place"></label>
+<label>Datum<input type="date" data-k="date"></label><label>Modus<select data-k="mode" onchange="modeChanged()"><option>Training</option><option>Prüfung</option><option>Einsatz</option></select></label></div><div class="exam-only"><details><summary><b>Prüfungsvorgaben</b> · kompakt und anpassbar</summary><div class="grid"><label>Vorlage<select data-k="examPreset" onchange="applyExamPreset(this.value)"><option value="custom">Eigene Vorgaben</option><option value="drk">DRK 2024</option><option value="iro">FCI/IRO 2025</option></select></label><label>Prüfungsgrundlage / Stufe<input data-k="examRule" placeholder="z. B. Verband / Stufe"></label><label>Stufe (bei FCI/IRO)<select data-k="examLevel" onchange="applyExamPreset(S.examPreset||'custom')"><option value="">–</option><option>V</option><option>A</option><option>B</option></select></label><label>Max. Suchzeit (min)<input type="number" min="1" data-k="examMinutes"></label><label>Suchfläche (m²)<input data-k="examArea" inputmode="numeric"></label><label>Versteckpersonen<input data-k="examPersons" placeholder="z. B. 1–3 / unbekannt"></label></div><label><input type="checkbox" id="rememberExam" onchange="rememberExamSettings(this.checked)"> Diese Vorgaben auf diesem Gerät merken</label><div class="row noprint" style="margin-top:8px"><button type="button" class="btn" onclick="saveExamPresetFile()">⬇ Prüfungsvorgaben teilen</button><button type="button" class="btn" onclick="document.getElementById('examPresetImport').click()">⬆ Prüfungsvorgaben laden</button><input id="examPresetImport" type="file" accept="application/json,.json" hidden onchange="importExamPresetFile(this)"></div><p class="muted">Vorlagen sind nur Startwerte. Zeit, Fläche und Personenangabe bleiben frei änderbar.</p></details></div><div id="saveStatus" class="muted"></div><div class="grid">
+</div><p class="warn"><b>Sicherheit vor Suche:</b> Die App ersetzt keine statische/fachkundige Freigabe. Nicht freigegebene Bereiche nicht betreten. Suchgrenzen, sichere Zugänge und Abbruchkriterien vor dem Ansatz festlegen.</p>
+<div class="row noprint"><button class="btn primary big" onclick="stamp('Suche vorbereitet')">Suche vorbereiten</button></div><p class="muted">Wetter und Taktik zuerst festlegen. Den GPS-Track anschließend beim tatsächlichen Suchbeginn unter „Live“ starten.</p></div>
+<div class="card"><h2>Lage & Auftrag</h2><label>Auftrag / Lage<textarea data-k="brief" rows="4" placeholder="Schadenslage, vermisste/verschüttete Personen, bereits abgesuchte Bereiche, Gefahren, Zugänge"></textarea></label>
+<h3>Trümmer-/Objektstruktur</h3><div class="chips"><button type="button" class="chip" data-g="structure">Beton</button><button type="button" class="chip" data-g="structure">Mauerwerk</button><button type="button" class="chip" data-g="structure">Holz</button><button type="button" class="chip" data-g="structure">Mischtrümmer</button><button type="button" class="chip" data-g="structure">Gebäude</button><button type="button" class="chip" data-g="structure">Fahrzeuge</button><button type="button" class="chip" data-g="structure">Tunnel/Kanal</button><button type="button" class="chip" data-g="structure">mehrgeschossig</button></div>
+<h3>Gefahren</h3><div class="chips"><button type="button" class="chip" data-g="hazards">Statik/lose Teile</button><button type="button" class="chip" data-g="hazards">Absturz</button><button type="button" class="chip" data-g="hazards">scharfe Kanten</button><button type="button" class="chip" data-g="hazards">Staub</button><button type="button" class="chip" data-g="hazards">Feuer/Hitze</button><button type="button" class="chip" data-g="hazards">Gas/Chemie</button><button type="button" class="chip" data-g="hazards">Strom</button><button type="button" class="chip" data-g="hazards">Wasser</button><button type="button" class="chip" data-g="hazards">Maschinen</button><button type="button" class="chip" data-g="hazards">enge Räume</button><button type="button" class="chip" data-g="hazards">Dunkelheit</button></div>
+<label>Freigabe / sichere Wege / Tabuzonen<textarea data-k="safety" rows="3"></textarea></label></div>
+</section>
+<section data-page="Wetter"><div class="card"><h2>Wetter am Startpunkt</h2><div class="row noprint"><button class="btn" onclick="fetchWeather()">📍 Wetter per GPS abrufen</button><button type="button" class="btn" onclick="weatherDiagnose()">🔧 Verbindung prüfen</button></div><div class="grid noprint" style="margin-top:8px"><label>Falls GPS nicht verfügbar: Ort oder PLZ<input id="weatherPlace" placeholder="z. B. 34369 Hofgeismar"></label><label>&nbsp;<button type="button" class="btn" style="margin-top:4px;width:100%" onclick="fetchWeatherByPlace()">Wetter über Ort / PLZ</button></label></div><div id="weatherStatus" class="muted"></div><div id="weatherMap" class="noprint" style="height:220px;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:#eee"></div><p class="muted noprint">Auf die Karte tippen, um den Standort zu setzen – Wetter wird dann ohne GPS-Freigabe abgerufen.</p><div class="grid"><label>Temperatur °C<input data-k="wxTemp"></label><label>Luftfeuchte %<input data-k="wxHumidity"></label><label>Windrichtung °<input data-k="wxWindDir"></label><label>Wind km/h<input data-k="wxWind"></label><label>Böen km/h<input data-k="wxGust"></label><label>Niederschlag mm<input data-k="wxPrecip"></label></div><label>Beobachtung im Trümmerfeld / bodennahe Luftbewegung<input data-k="wxLocal"></label><p class="muted">Modellwetter ist nur die Ausgangslage. Verwirbelungen, Erwärmung und lokale Luftbewegung im Trümmerfeld separat beobachten.</p></div></section>
+<section data-page="Taktik">
+<div class="card"><h2>Suchplanung</h2><p class="muted">Die Empfehlung strukturiert die Lage; sie ersetzt keine Einsatzentscheidung.</p>
+<h3>Suchform</h3><div class="chips"><button type="button" class="chip" data-g="pattern">Grobsuche</button><button type="button" class="chip" data-g="pattern">Feinsuche/Mikrolokalisierung</button><button type="button" class="chip" data-g="pattern">Randbereiche</button><button type="button" class="chip" data-g="pattern">Teilsektor</button><button type="button" class="chip" data-g="pattern">Gesamtfeld</button><button type="button" class="chip" data-g="pattern">Nahsuche</button><button type="button" class="chip" data-g="pattern">Distanzsuche</button><button type="button" class="chip" data-g="pattern">enger Raum</button></div>
+<div class="grid"><label>Wind / Luftbewegung<select data-k="wind"><option>unbekannt</option><option>ruhig</option><option>konstant</option><option>wechselnd</option><option>stark</option></select></label>
+<label>Thermik / Temperatur<textarea data-k="thermal" rows="2" placeholder="Sonne/Schatten, warm/kalt, Tageszeit"></textarea></label></div>
+<h3>Geruchswege</h3><div class="chips"><button type="button" class="chip" data-g="scent">Fugen/Spalten</button><button type="button" class="chip" data-g="scent">Schacht</button><button type="button" class="chip" data-g="scent">Treppenhaus</button><button type="button" class="chip" data-g="scent">Fenster/Tür</button><button type="button" class="chip" data-g="scent">Rohr/Kanal</button><button type="button" class="chip" data-g="scent">Hohlraum</button><button type="button" class="chip" data-g="scent">mehrere Austritte</button><button type="button" class="chip" data-g="scent">Austritt fern der Quelle</button><button type="button" class="chip" data-g="scent">Geruchspool</button></div>
+<label>Vermutete Luft-/Geruchswege<textarea data-k="scentNotes" rows="4"></textarea></label>
+<div id="rubbleAdvice" class="good"></div><button class="btn noprint" onclick="calcRubble()">Taktikhinweise aktualisieren</button></div>
+<div class="card"><h2>Sektoren</h2><label>Sektoren / Reihenfolge<textarea data-k="sectors" rows="5" placeholder="A: Rand/Nord · B: Haupttrümmer · C: Gebäudeinneres ..."></textarea></label></div>
+</section>
+<section data-page="Live">
+<div class="card"><h2>Suche & Track</h2>
+<div class="grid noprint"><label>Trackmodus<select id="trackMode" onchange="setTrackMode(this.value)"><option value="gps">GPS-Track</option><option value="time">Nur Zeit (kein GPS)</option></select></label><label>&nbsp;<div id="trackModeHint" class="muted" style="margin-top:8px"></div></label></div>
+<div class="row noprint"><button class="btn primary big" onclick="startTracking()">Suche starten</button><button class="btn" onclick="stopTracking()">Stoppen</button></div>
+<div id="timeTrackBox" class="row noprint" style="display:none;margin-top:8px"><b id="timeTrackClock">00:00</b><button type="button" class="btn" onclick="addTimeWaypoint()">Zeitpunkt markieren</button></div>
+<p class="muted">Start erst nach Taktikeingabe möglich (mindestens eine Suchform unter „Taktik“ auswählen). Falls Android bei lokal geöffneten HTML-Dateien den Standort sperrt, bleibt der Trackmodus „Nur Zeit“ sowie Wetter über Ort/PLZ nutzbar.</p></div>
+<div class="card"><h2>Schnellmarkierungen</h2><div class="row noprint">
+<button class="btn big" onclick="stamp('Geruch aufgenommen')">Geruch</button><button class="btn big" onclick="stamp('Geruchspool / Vergleich')">Geruchspool</button>
+<button class="btn big" onclick="stamp('Mikrolokalisierung')">Mikrolokalisierung</button><button class="btn big" onclick="addFind()">Fund/Anzeige</button>
+<button class="btn" onclick="stamp('Wiederansatz')">Wiederansatz</button><button class="btn" onclick="stamp('Negativbereich')">Negativ</button><button class="btn" onclick="stamp('Pause')">Pause</button><button class="btn" onclick="stamp('Abbruch Sicherheit')">Sicherheitsabbruch</button>
+</div><label>Kurze Notiz<input id="quickNote" placeholder="optional"></label><button class="btn noprint" onclick="stamp('Beobachtung',$('#quickNote').value);$('#quickNote').value=''">Notiz setzen</button><div id="events"></div></div>
+<div class="card"><h2>Track</h2><canvas id="track"></canvas><div id="timeTrackList"></div></div><div class="card"><h2>Anzeige von außen lokalisieren</h2>
+<p class="muted">Von außen (ohne Sichtkontakt) markieren, wo Hund/Anzeige vermutet werden. Nach der Suche lassen sich tatsächliche Hundeposition und VP-Lage ergänzen – zur getrennten Betrachtung von HF-Einschätzung und Mikrolokalisierung, ohne automatische Leistungsnote.</p>
+<div class="row noprint"><label>Kartenquelle<select id="fieldSource" onchange="setFieldSource(this.value)"><option value="photo">Foto/Skizze (offline)</option><option value="online">Online-Karte (GPS, kleinräumig)</option></select></label></div>
+<div id="photoFieldBox">
+<div class="row noprint"><label class="btn">Lagebild / Karte laden<input hidden type="file" accept="image/*" onchange="loadRubbleMap(this)"></label><button class="btn" onclick="setMapMode('draw')">Gelände zeichnen</button><button class="btn" onclick="setMapMode('dogtrack')">Hundetrack zeichnen</button><button class="btn" onclick="setMarkMode('estimate')">1 · HF-Vermutung</button><button class="btn" onclick="setMarkMode('dogActual')">2 · Hund tatsächlich</button><button class="btn" onclick="setMarkMode('actual')">3 · VP tatsächlich</button><button class="btn" onclick="undoLastRubbleMark()">Letzte Markierung zurück</button><button class="btn" onclick="undoMapStroke()">Letzten Strich zurück</button><button class="btn" onclick="clearRubbleMarks()">Karte/Markierungen leeren</button></div>
+<div class="grid"><label>Bekannte Kartenbreite in Metern (optional)<input id="mapWidthM" type="number" min="1" step="1" placeholder="z. B. 80" oninput="S.mapWidthM=this.value;save();drawRubbleMap()"></label><label>Aktiver Markiermodus<input id="markModeText" value="keiner" readonly></label></div>
+<div class="markerlegend"><span>🔴 HF vermutet Hund/Anzeige</span><span>🟠 tatsächliche Hundeposition bei Anzeige</span><span>🔵 tatsächliche Versteckperson</span><span>⬛ Geländezeichnung</span><span>🟣 Hundetrack im Lagebild</span></div><canvas id="rubbleMap" class="mapcanvas"></canvas><div id="rubbleCompare" class="good"></div>
+<p class="muted">Das Lagebild wird aus Speichergründen nur für die aktuelle Sitzung gehalten; die relativen Markierungen und die optionale Kartenbreite werden im Vorgang gespeichert.</p></div>
+<div id="onlineFieldBox" style="display:none">
+<div class="row noprint"><button class="btn" onclick="startFieldAreaDraw()">🖊 Suchgebiet/Gelände einzeichnen</button><button class="btn" onclick="undoFieldAreaPoint()">Letzten Punkt entfernen</button><button class="btn" onclick="finishFieldAreaDraw()">Fertig</button><button class="btn" onclick="clearFieldAreaPolygon()">Suchgebiet löschen</button></div>
+<div class="row noprint"><button class="btn" onclick="setMarkMode('estimate')">1 · HF-Vermutung</button><button class="btn" onclick="setMarkMode('dogActual')">2 · Hund tatsächlich</button><button class="btn" onclick="setMarkMode('actual')">3 · VP tatsächlich</button><button class="btn" onclick="undoLastFieldMark()">Letzte Markierung zurück</button><button class="btn" onclick="awaitingFindClick=true;alert('Nächsten Kartenklick als Fund/Anzeige übernehmen.')">📍 Fund auf Karte markieren</button><button class="btn" onclick="clearFieldMapMarks()">Kartenmarkierungen leeren</button></div>
+<div class="row noprint"><label class="btn">Hundetrack laden (GPX/KML/JSON)<input hidden type="file" accept=".gpx,.kml,.json" onchange="importDogTrackGeo(this)"></label><button class="btn" onclick="editVpNote()">📝 VP-Lage vermerken (Tiefe/Höhe)</button></div>
+<div id="markModeTextGeo" class="muted">Aktiver Markiermodus: keiner</div>
+<div class="markerlegend"><span>🔴 HF vermutet Hund/Anzeige</span><span>🟠 tatsächliche Hundeposition bei Anzeige</span><span>🔵 tatsächliche Versteckperson</span><span>🟤 GPS-Track (Hundeführer)</span><span>🟣 Hundetrack (Datei)</span><span>⬜ Suchgebiet/Gelände</span><span>📍 Fund/Anzeige</span></div>
+<div id="fieldMap" style="height:420px;border:1px solid var(--line);border-radius:10px"></div>
+<div id="fieldMapCompare" class="good"></div>
+<p class="muted">Reale GPS-Positionen und -Abstände. Genauer als eine Lagebeschreibung von außen, sofern am Einsatzort Internet für die Kartenkacheln verfügbar ist; ohne Internet bitte Foto/Skizze-Modus nutzen.</p></div>
+</div></section>
+<section data-page="Funde">
+<div class="card"><h2>Fundstellen / Anzeigen</h2><div id="finds"></div><button class="btn noprint" onclick="addFind()">+ Fundstelle</button></div>
+<div class="card"><h2>Bewertung Hund</h2><div class="grid">
+<label>Suchmodus<select data-k="searchMode"><option>nicht bewertet</option><option>selbstständige Sucharbeit</option><option>geführt / gelenkt</option><option>wechselnde Phasen</option></select></label><label>Sichtkontakt HF–Hund<select data-k="visualContact"><option>nicht bewertet</option><option>durchgehend</option><option>zeitweise</option><option>ohne Sichtkontakt</option></select></label><label>Selbstständigkeit<select data-k="independent"><option>nicht bewertet</option><option>sehr selbstständig</option><option>mit kleinen Hilfen</option><option>wechselhaft</option><option>häufige Hilfen</option></select></label>
+<label>Bewegungssicherheit<select data-k="movement"><option>nicht bewertet</option><option>sicher/flüssig</option><option>vorsichtig sicher</option><option>unsicher</option><option>Abbruch</option></select></label>
+<label>Mikrolokalisierung<select data-k="micro"><option>nicht bewertet</option><option>präzise</option><option>gut eingegrenzt</option><option>Geruchspool, Quelle unsicher</option><option>vorschnelle Anzeige</option></select></label>
+<label>Verbellen<select data-k="bark"><option>nicht bewertet</option><option>stabil/anhaltend</option><option>stabil mit Pausen</option><option>verzögert</option><option>abgebrochen</option></select></label>
+</div></div></section>
+<section data-page="Training"><div class="card training-only"><h2>Trainingsfortschritt</h2><div class="grid"><label>Start / Suchauftrag<select data-k="progStart"><option>nicht bewertet</option><option>1 – Aufbau</option><option>2 – mit deutlicher Hilfe</option><option>3 – wechselhaft</option><option>4 – sicher</option><option>5 – sehr sicher / selbstständig</option></select></label><label>Sucharbeit<select data-k="progSearch"><option>nicht bewertet</option><option>1 – Aufbau</option><option>2 – mit deutlicher Hilfe</option><option>3 – wechselhaft</option><option>4 – sicher</option><option>5 – sehr sicher / selbstständig</option></select></label><label>Auffinde-/Anzeigebereich<select data-k="progFind"><option>nicht bewertet</option><option>1 – Aufbau</option><option>2 – mit deutlicher Hilfe</option><option>3 – wechselhaft</option><option>4 – sicher</option><option>5 – sehr sicher / selbstständig</option></select></label></div></div></section>
+<section data-page="Abschluss"><div class="card"><h2>Nachbesprechung</h2><label>Was funktionierte?<textarea data-k="good" rows="3"></textarea></label><label>Nächstes Lernziel<textarea data-k="next" rows="3"></textarea></label><label>Sicherheits-/Taktikhinweise<textarea data-k="debrief" rows="3"></textarea></label>
+<div class="row noprint"><button class="btn" onclick="protocol()">Drucken / PDF</button><button class="btn training-only" onclick="exportTraining()">Für Trainingstagebuch exportieren</button><button class="btn deployment-only" onclick="exportDeployment()">An Einsatzprotokoll übergeben</button><button class="btn" onclick="backup()">JSON-Sicherung</button><label class="btn">Sicherung laden<input hidden type="file" accept=".json" onchange="restore(this)"></label><button class="btn" onclick="resetAll()">Neuer Vorgang</button></div></div></section>
+</main>
+<script>
+const KEY="rhs-truemmersuchassistent-v1", $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let S={version:3,mode:'Training',createdAt:new Date().toISOString(),events:[],track:[],finds:[],rubbleMarks:{estimate:[],dogActual:[],actual:[]},mapWidthM:'',rubbleDrawing:[],dogMapTrack:[],trackMode:'gps',timeTrack:[],searchStartAt:null,trackRunning:false,fieldSource:'photo',rubbleMarksGeo:{estimate:[],dogActual:[],actual:[]},searchAreaPolygon:[],dogTrackGeo:[]};
+try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+function normalizeMarks(obj){obj=obj||{};['estimate','dogActual','actual'].forEach(k=>{let v=obj[k];if(!Array.isArray(v))obj[k]=v?[v]:[];});return obj;}
+S.rubbleMarks=normalizeMarks(S.rubbleMarks);S.rubbleMarksGeo=normalizeMarks(S.rubbleMarksGeo);
+let saveWarned=false;function setSaveStatus(t,bad=false){let e=$('#saveStatus');if(e){e.textContent=t;e.style.color=bad?'#b91c1c':''}}function idbMirror(payload){try{let q=indexedDB.open('RHS-AssistantStore',1);q.onupgradeneeded=()=>{if(!q.result.objectStoreNames.contains('states'))q.result.createObjectStore('states')};q.onsuccess=()=>{let db=q.result,tx=db.transaction('states','readwrite');tx.objectStore('states').put(payload,KEY);tx.oncomplete=()=>db.close()}}catch(e){}}function idbRecoverNewest(after){try{let q=indexedDB.open('RHS-AssistantStore',1);q.onupgradeneeded=()=>{if(!q.result.objectStoreNames.contains('states'))q.result.createObjectStore('states')};q.onsuccess=()=>{let db=q.result,tx=db.transaction('states','readonly'),r=tx.objectStore('states').get(KEY);r.onsuccess=()=>{let m=r.result;db.close();if(m&&(!S.updatedAt||String(m.updatedAt||'')>String(S.updatedAt||''))){S=Object.assign(S,m);setSaveStatus('Neueren Stand aus Gerätespeicher wiederhergestellt.');if(after)after(true)}else if(after)after(false)};r.onerror=()=>{db.close();if(after)after(false)}}}catch(e){if(after)after(false)}}function save(){S.updatedAt=new Date().toISOString();let payload=JSON.stringify(S);try{localStorage.setItem(KEY,payload);idbMirror(S);setSaveStatus('Gespeichert · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}));return true}catch(e){idbMirror(S);setSaveStatus('Lokaler Speicher fehlgeschlagen – Kopie im Gerätespeicher wird versucht. Bitte JSON sichern.',true);return false}}
+function bind(){$$('[data-k]').forEach(el=>{let k=el.dataset.k;if(S[k]!=null)el.value=S[k];el.oninput=()=>{S[k]=el.value;save();}});$$('.chip').forEach(b=>b.onclick=()=>{b.classList.toggle('on');saveChips();});}
+function saveChips(){S.chips={};$$('.chip.on').forEach(b=>(S.chips[b.dataset.g]??=[]).push(b.textContent));save();}
+function loadChips(){for(const [g,a] of Object.entries(S.chips||{}))$$(`.chip[data-g="${g}"]`).forEach(b=>b.classList.toggle('on',a.includes(b.textContent)));}
+function pages(){let secs=$$('section[data-page]');let n=$('#nav');n.innerHTML='';secs.forEach((s,i)=>{let b=document.createElement('button');b.textContent=s.dataset.page;b.onclick=()=>show(i);n.appendChild(b)});show(0)}
+function show(i){$$('section[data-page]').forEach((s,j)=>s.classList.toggle('on',i===j));$$('#nav button').forEach((b,j)=>b.classList.toggle('on',i===j));scrollTo(0,0);let page=$$('section[data-page]')[i]?.dataset.page;if(page==='Wetter')ensureWeatherMap();if(page==='Live'&&(S.fieldSource||'photo')==='online')ensureFieldMap();}
+function stamp(type,note=''){S.events.push({id:crypto.randomUUID?.()||Date.now()+Math.random(),at:new Date().toISOString(),type,note});save();renderEvents();}
+function renderEvents(){let e=$('#events');if(e)e.innerHTML=(S.events||[]).slice().reverse().map(x=>`<div class="event"><b>${new Date(x.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} · ${x.type}</b>${x.note?'<br>'+esc(x.note):''}</div>`).join('')||'<p class="muted">Noch keine Ereignisse.</p>';}
+function esc(x){return String(x||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+const LEAFLET_JS_CDN='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
+const LEAFLET_CSS_CDN='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
+let leafletLoadPromise=null;
+function loadStylesheet(href){if(document.querySelector(`link[href="${href}"]`))return;const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l);}
+function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=()=>resolve();s.onerror=()=>reject(new Error('Skript konnte nicht geladen werden (kein Internet oder CDN nicht erreichbar): '+src));document.head.appendChild(s);});}
+function loadLeaflet(){if(window.L)return Promise.resolve();if(leafletLoadPromise)return leafletLoadPromise;loadStylesheet(LEAFLET_CSS_CDN);leafletLoadPromise=loadScript(LEAFLET_JS_CDN);return leafletLoadPromise;}
+let weatherMap=null, weatherMarker=null;
+async function ensureWeatherMap(){
+ const container=$('#weatherMap');if(!container)return;
+ try{await loadLeaflet();}catch(e){container.textContent='Karte konnte nicht geladen werden (kein Internet zum CDN). Ort/PLZ oder GPS-Button weiter nutzbar.';return;}
+ if(weatherMap){weatherMap.invalidateSize();return;}
+ let lat=S.weatherLat,lon=S.weatherLon;
+ weatherMap=L.map(container).setView([lat||51.3,lon||9.4],lat?15:6);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap-Mitwirkende'}).addTo(weatherMap);
+ if(lat)weatherMarker=L.marker([lat,lon]).addTo(weatherMap);
+ weatherMap.on('click',e=>{const {lat,lng}=e.latlng;if(weatherMarker)weatherMarker.setLatLng([lat,lng]);else weatherMarker=L.marker([lat,lng]).addTo(weatherMap);requestWeather(lat,lng,'Kartenauswahl');});
+}
+function updateWeatherMapMarker(lat,lon){if(!weatherMap)return;if(weatherMarker)weatherMarker.setLatLng([lat,lon]);else weatherMarker=L.marker([lat,lon]).addTo(weatherMap);weatherMap.setView([lat,lon],15);}
+function fetchTO(url,ms=10000){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);return fetch(url,{signal:c.signal}).finally(()=>clearTimeout(t));}
+let watch=null;
+function gpsStart(){
+ if(!window.isSecureContext){alert('GPS ist auf diesem Gerät für lokal geöffnete Dateien gesperrt (kein sicherer Kontext/HTTPS). Bitte Trackmodus „Nur Zeit“ verwenden oder die Datei über eine https-Adresse öffnen.');return;}
+ if(!navigator.geolocation)return alert('GPS nicht verfügbar.');
+ if(watch!=null)return;
+ watch=navigator.geolocation.watchPosition(p=>{S.track.push({t:new Date().toISOString(),lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy});save();drawTrack();renderFieldMapTrack();},e=>alert('GPS: '+e.message),{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+ S.trackRunning=true;save();stamp('GPS-Track gestartet');
+}
+function gpsStop(){if(watch!=null)navigator.geolocation.clearWatch(watch);watch=null;S.trackRunning=false;save();stamp('GPS-Track gestoppt')}
+function requireTaktik(){
+ let hasPattern=(S.chips?.pattern||[]).length>0;
+ if(!hasPattern){
+  alert('Bitte zuerst unter „Taktik“ mindestens eine Suchform auswählen, bevor die Suche/der Track gestartet wird.');
+  let idx=[...$$('section[data-page]')].findIndex(s=>s.dataset.page==='Taktik');
+  if(idx>-1)show(idx);
+  return false;
+ }
+ return true;
+}
+function setTrackMode(v){S.trackMode=v;save();updateTrackModeUI();}
+function updateTrackModeUI(){
+ let v=S.trackMode||'gps';let box=$('#timeTrackBox');if(box)box.style.display=v==='time'?'flex':'none';
+ let sel=$('#trackMode');if(sel)sel.value=v;
+ let hint=$('#trackModeHint');if(hint)hint.textContent=v==='time'?'Zeitbasierter Track: Wegpunkte per Knopfdruck mit Uhrzeit erfassen, kein GPS nötig.':'GPS-Track: Position wird laufend automatisch aufgezeichnet.';
+ renderTimeTrack();
+}
+function startTracking(){
+ if(!requireTaktik())return;
+ if((S.trackMode||'gps')==='time')timeTrackStart();else gpsStart();
+ stamp('Suche gestartet');
+}
+function stopTracking(){if((S.trackMode||'gps')==='time')timeTrackStop();else gpsStop();}
+let timeTrackTimer=null;
+function timeTrackStart(){
+ if(!S.searchStartAt)S.searchStartAt=new Date().toISOString();
+ S.trackRunning=true;save();
+ if(timeTrackTimer)clearInterval(timeTrackTimer);
+ timeTrackTimer=setInterval(updateClock,1000);updateClock();
+ stamp('Zeit-Track gestartet');
+}
+function timeTrackStop(){if(timeTrackTimer){clearInterval(timeTrackTimer);timeTrackTimer=null;}S.trackRunning=false;save();stamp('Zeit-Track gestoppt')}
+function updateClock(){let c=$('#timeTrackClock');if(!c||!S.searchStartAt)return;let s=Math.max(0,Math.round((Date.now()-new Date(S.searchStartAt).getTime())/1000));c.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function addTimeWaypoint(){let note=prompt('Notiz zum Wegpunkt (optional):','')||'';let elapsed=S.searchStartAt?Math.round((Date.now()-new Date(S.searchStartAt).getTime())/1000):null;S.timeTrack=S.timeTrack||[];S.timeTrack.push({t:new Date().toISOString(),elapsedS:elapsed,note});save();renderTimeTrack();stamp('Zeitpunkt markiert',note);}
+function renderTimeTrack(){let e=$('#timeTrackList');if(!e)return;if((S.trackMode||'gps')!=='time'){e.innerHTML='';return;}e.innerHTML=(S.timeTrack||[]).map(p=>{let mm=p.elapsedS!=null?String(Math.floor(p.elapsedS/60)).padStart(2,'0')+':'+String(p.elapsedS%60).padStart(2,'0'):'–';return `<div class="event">${mm} · ${new Date(p.t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}${p.note?' · '+esc(p.note):''}</div>`;}).join('')||'<p class="muted">Noch keine Zeit-Wegpunkte.</p>';}
+function resumeTracking(){if((S.trackMode||'gps')==='time'&&S.trackRunning){if(timeTrackTimer)clearInterval(timeTrackTimer);timeTrackTimer=setInterval(updateClock,1000);updateClock();}}
+async function weatherDiagnose(){let st=$('#weatherStatus');let lines=[];lines.push('Sicherer Kontext (https/localhost): '+(window.isSecureContext?'ja':'NEIN – GPS/Standortabruf wird vom Browser blockiert'));lines.push('Geolocation-API vorhanden: '+(navigator.geolocation?'ja':'nein'));lines.push('Online-Status: '+(navigator.onLine===false?'kein Internet erkannt':'Internet erkannt'));try{let r=await fetchTO('https://api.open-meteo.com/v1/forecast?latitude=51.3&longitude=9.4&current=temperature_2m',6000);lines.push('Testabruf Wetterdienst: '+(r.ok?'erfolgreich':'fehlgeschlagen (HTTP '+r.status+')'));}catch(e){lines.push('Testabruf Wetterdienst: fehlgeschlagen ('+(e.name==='AbortError'?'Zeitüberschreitung':e.message)+')');}if(st)st.innerHTML=lines.map(esc).join('<br>');}
+function drawTrack(){let c=$('#track');if(!c)return;let d=devicePixelRatio||1,w=c.clientWidth*d,h=260*d;c.width=w;c.height=h;let x=c.getContext('2d');x.clearRect(0,0,w,h);let a=S.track||[];if(a.length<2){x.fillText('GPS-Track erscheint hier',15*d,25*d);return}let lats=a.map(p=>p.lat),lons=a.map(p=>p.lon),miA=Math.min(...lats),maA=Math.max(...lats),miO=Math.min(...lons),maO=Math.max(...lons);let px=p=>20*d+(p.lon-miO)/(maO-miO||1)*(w-40*d),py=p=>h-20*d-(p.lat-miA)/(maA-miA||1)*(h-40*d);x.beginPath();a.forEach((p,i)=>i?x.lineTo(px(p),py(p)):x.moveTo(px(p),py(p)));x.stroke();}
+let rubbleMapImage=null, markMode=null, mapMode='mark', drawing=false, currentStroke=null;
+function loadRubbleMap(inp){let f=inp.files[0];if(!f)return;let r=new FileReader;r.onload=()=>{let im=new Image();im.onload=()=>{rubbleMapImage=im;drawRubbleMap()};im.src=r.result};r.readAsDataURL(f);inp.value=''}
+function setMapMode(m){mapMode=m;markMode=null;let e=$('#markModeText');if(e)e.value=m==='draw'?'Gelände zeichnen (schwarz)':'Hundetrack zeichnen (violett)'}
+function setMarkMode(m){mapMode='mark';markMode=m;let txt=m==='estimate'?'HF-Vermutung (rot)':m==='dogActual'?'Hund tatsächlich (orange)':'VP tatsächlich (blau)';let e=$('#markModeText');if(e)e.value=txt;let e2=$('#markModeTextGeo');if(e2)e2.textContent='Aktiver Markiermodus: '+txt;}
+function clearRubbleMarks(){if(!confirm('Lagebild-Markierungen, Geländezeichnung und eingezeichneten Hundetrack löschen?'))return;S.rubbleMarks={estimate:[],dogActual:[],actual:[]};S.rubbleDrawing=[];S.dogMapTrack=[];save();drawRubbleMap()}
+function posOnCanvas(ev){let c=$('#rubbleMap'),r=c.getBoundingClientRect(),t=ev.touches?.[0]||ev;return{x:Math.max(0,Math.min(1,(t.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(t.clientY-r.top)/r.height)),at:new Date().toISOString()}}
+function rubbleClick(ev){
+ if(mapMode!=='mark'||!markMode)return;
+ let p=posOnCanvas(ev);
+ S.rubbleMarks=S.rubbleMarks||{estimate:[],dogActual:[],actual:[]};
+ if(!Array.isArray(S.rubbleMarks[markMode]))S.rubbleMarks[markMode]=[];
+ if(markMode==='actual'){let note=prompt('Optionaler Vermerk zur VP-Lage (z. B. Tiefe/Höhe, Geschoss, Verschüttungstiefe):','')||'';if(note)p.note=note;}
+ S.rubbleMarks[markMode].push(p);
+ save();
+ stamp(markMode==='estimate'?'HF vermutete Anzeigenposition markiert':markMode==='dogActual'?'Tatsächliche Hundeposition bei Anzeige markiert':'Tatsächliche VP-Position markiert');
+ drawRubbleMap();
+}
+function undoLastRubbleMark(){
+ if(!markMode){alert('Bitte zuerst einen Markiermodus (1/2/3) wählen.');return;}
+ let arr=(S.rubbleMarks||{})[markMode];
+ if(!arr||!arr.length)return;
+ arr.pop();save();drawRubbleMap();
+}
+function mapPointerDown(ev){if(!['draw','dogtrack'].includes(mapMode))return;ev.preventDefault();drawing=true;currentStroke=[posOnCanvas(ev)];if(mapMode==='draw'){S.rubbleDrawing=S.rubbleDrawing||[];S.rubbleDrawing.push(currentStroke)}else{S.dogMapTrack=S.dogMapTrack||[];S.dogMapTrack.push(currentStroke)};drawRubbleMap()}
+function mapPointerMove(ev){if(!drawing||!currentStroke)return;ev.preventDefault();currentStroke.push(posOnCanvas(ev));drawRubbleMap()}
+function mapPointerUp(ev){if(!drawing)return;drawing=false;currentStroke=null;save();stamp(mapMode==='draw'?'Gelände im Lagebild ergänzt':'Hundetrack im Lagebild ergänzt')}
+function undoMapStroke(){let a=mapMode==='dogtrack'?(S.dogMapTrack||[]):(S.rubbleDrawing||[]);if(a.length)a.pop();save();drawRubbleMap()}
+function distMap(a,b,w,h,mw){let dx=b.x-a.x,dy=b.y-a.y;if(mw>0){let mh=mw*(h/w);return Math.sqrt((dx*mw)**2+(dy*mh)**2)}return Math.sqrt(dx*dx+dy*dy)*100}
+function hav(a,b){let R=6371000,rad=Math.PI/180,dla=(b.lat-a.lat)*rad,dlo=(b.lon-a.lon)*rad,la1=a.lat*rad,la2=b.lat*rad;let q=Math.sin(dla/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dlo/2)**2;return 2*R*Math.asin(Math.sqrt(q))}
+let fieldMap=null, fieldMarkers={}, fieldTrackLine=null, fieldFindLayer=null, awaitingFindClick=false;
+let fieldDrawing=false, fieldDrawPoints=[], fieldDrawMarkers=[], fieldDrawLine=null, fieldAreaLayer=null, fieldDogTrackLine=null;
+function setFieldSource(v){
+ S.fieldSource=v;save();
+ let photo=$('#photoFieldBox'),online=$('#onlineFieldBox'),sel=$('#fieldSource');
+ if(sel)sel.value=v;
+ if(photo)photo.style.display=v==='online'?'none':'block';
+ if(online)online.style.display=v==='online'?'block':'none';
+ if(v==='online')ensureFieldMap();
+}
+function fieldCenter(){
+ if(S.track&&S.track.length)return{lat:S.track[S.track.length-1].lat,lon:S.track[S.track.length-1].lon,zoom:18};
+ if(S.weatherLat)return{lat:S.weatherLat,lon:S.weatherLon,zoom:17};
+ return{lat:51.3,lon:9.4,zoom:6};
+}
+async function ensureFieldMap(){
+ const container=$('#fieldMap');if(!container)return;
+ try{await loadLeaflet();}catch(e){container.textContent='Karte konnte nicht geladen werden (kein Internet zum CDN). Bitte Foto/Skizze-Modus nutzen.';return;}
+ if(fieldMap){fieldMap.invalidateSize();renderFieldMapMarks();renderFieldMapTrack();renderFieldMapFinds();renderFieldAreaPolygon();renderFieldDogTrack();return;}
+ let c=fieldCenter();
+ fieldMap=L.map(container).setView([c.lat,c.lon],c.zoom);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OpenStreetMap-Mitwirkende'}).addTo(fieldMap);
+ fieldTrackLine=L.polyline([],{color:'#9a3412',weight:3}).addTo(fieldMap);
+ fieldFindLayer=L.layerGroup().addTo(fieldMap);
+ fieldMap.on('click',onFieldMapClick);
+ renderFieldMapMarks();renderFieldMapTrack();renderFieldMapFinds();renderFieldAreaPolygon();renderFieldDogTrack();
+}
+function onFieldMapClick(e){
+ const {lat,lng}=e.latlng;
+ if(fieldDrawing){addFieldDrawPoint(lat,lng);return;}
+ if(awaitingFindClick){awaitingFindClick=false;addFind(lat,lng);return;}
+ if(!markMode)return;
+ S.rubbleMarksGeo=S.rubbleMarksGeo||{estimate:[],dogActual:[],actual:[]};
+ if(!Array.isArray(S.rubbleMarksGeo[markMode]))S.rubbleMarksGeo[markMode]=[];
+ let entry={lat,lon:lng};
+ if(markMode==='actual'){
+  let note=prompt('Optionaler Vermerk zur VP-Lage (z. B. Tiefe/Höhe, Geschoss, Verschüttungstiefe):','')||'';
+  if(note)entry.note=note;
+ }
+ S.rubbleMarksGeo[markMode].push(entry);
+ save();
+ stamp(markMode==='estimate'?'HF vermutete Anzeigenposition markiert (Karte)':markMode==='dogActual'?'Tatsächliche Hundeposition bei Anzeige markiert (Karte)':'Tatsächliche VP-Position markiert (Karte)');
+ renderFieldMapMarks();
+}
+function undoLastFieldMark(){
+ if(!markMode){alert('Bitte zuerst einen Markiermodus (1/2/3) wählen.');return;}
+ let arr=(S.rubbleMarksGeo||{})[markMode];
+ if(!arr||!arr.length)return;
+ arr.pop();save();renderFieldMapMarks();
+}
+function editVpNoteAt(idx){
+ let arr=(S.rubbleMarksGeo||{}).actual||[];
+ let cur=arr[idx];if(!cur)return;
+ let note=prompt('Vermerk zur VP-Lage (z. B. Tiefe/Höhe, Geschoss):',cur.note||'');
+ if(note===null)return;
+ cur.note=note;save();renderFieldMapMarks();
+}
+function editVpNote(){
+ let arr=(S.rubbleMarksGeo||{}).actual||[];
+ if(!arr.length){alert('Bitte zuerst mindestens eine VP-Position (3 · VP tatsächlich) markieren.');return;}
+ let idx=0;
+ if(arr.length>1){
+  let pick=prompt('Welche VP-Position bearbeiten? (1–'+arr.length+')','1');
+  if(pick===null)return;
+  idx=parseInt(pick,10)-1;
+  if(!(idx>=0&&idx<arr.length)){alert('Ungültige Nummer.');return;}
+ }
+ editVpNoteAt(idx);
+}
+function renderFieldMapMarks(){
+ if(!fieldMap)return;
+ const colors={estimate:'#dc2626',dogActual:'#f97316',actual:'#2563eb'};
+ const labels={estimate:'HF-Vermutung',dogActual:'Hund tatsächlich',actual:'VP tatsächlich'};
+ for(const k of Object.keys(colors)){
+  (fieldMarkers[k]||[]).forEach(mk=>fieldMap.removeLayer(mk));
+  fieldMarkers[k]=[];
+  let arr=(S.rubbleMarksGeo||{})[k]||[];
+  arr.forEach((p,i)=>{
+   let label=labels[k]+(arr.length>1?' '+(i+1):'');
+   let mk=L.circleMarker([p.lat,p.lon],{radius:9,color:colors[k],fillColor:colors[k],fillOpacity:.85}).addTo(fieldMap).bindPopup(label+(p.note?'<br>'+esc(p.note):''));
+   fieldMarkers[k].push(mk);
+  });
+ }
+ let est=(S.rubbleMarksGeo?.estimate)||[],dog=(S.rubbleMarksGeo?.dogActual)||[],act=(S.rubbleMarksGeo?.actual)||[],parts=[];
+ if(est.length===1&&dog.length===1)parts.push('HF-Einschätzung ↔ tatsächlicher Hund: '+hav(est[0],dog[0]).toFixed(1)+' m');
+ if(dog.length===1&&act.length===1)parts.push('Hund bei Anzeige ↔ VP: '+hav(dog[0],act[0]).toFixed(1)+' m');
+ if(est.length===1&&act.length===1&&dog.length===0)parts.push('HF-Einschätzung ↔ VP: '+hav(est[0],act[0]).toFixed(1)+' m');
+ if(act.length>1)parts.push(act.length+' VP-Positionen erfasst (automatischer Einzelvergleich nur bei je genau einer Markierung je Kategorie).');
+ act.forEach((p,i)=>{if(p.note)parts.push('VP'+(act.length>1?' '+(i+1):'')+': '+p.note)});
+ if(parts.length)parts.push('Reale GPS-Distanzen; Geruchsaustritt und tatsächliche VP-Lage können dennoch auseinanderliegen.');
+ let e=$('#fieldMapCompare');if(e)e.textContent=parts.join(' · ');
+}
+function renderFieldMapTrack(){if(!fieldMap||!fieldTrackLine)return;fieldTrackLine.setLatLngs((S.track||[]).map(p=>[p.lat,p.lon]));}
+function renderFieldMapFinds(){if(!fieldMap||!fieldFindLayer)return;fieldFindLayer.clearLayers();(S.finds||[]).forEach((f,i)=>{if(typeof f.lat==='number')L.marker([f.lat,f.lon]).addTo(fieldFindLayer).bindPopup('Fund '+(i+1)+': '+esc(f.note||''));});}
+function clearFieldMapMarks(){if(!confirm('Kartenmarkierungen (HF-Vermutung/Hund/VP) auf der Online-Karte löschen?'))return;S.rubbleMarksGeo={estimate:[],dogActual:[],actual:[]};save();renderFieldMapMarks();}
+function startFieldAreaDraw(){
+ if(!fieldMap){alert('Bitte zuerst die Online-Karte öffnen.');return;}
+ cleanupFieldDrawLayer();fieldDrawing=true;fieldDrawPoints=[];
+ alert('Ecke für Ecke auf die Karte tippen (mind. 3 Punkte). „Letzten Punkt entfernen“ macht einen Tipp rückgängig, „Fertig“ schließt die Fläche ab.');
+}
+function addFieldDrawPoint(lat,lon){fieldDrawPoints.push({lat,lon});redrawFieldDrawLayer();}
+function undoFieldAreaPoint(){if(!fieldDrawPoints.length)return;fieldDrawPoints.pop();redrawFieldDrawLayer();}
+function redrawFieldDrawLayer(){
+ (fieldDrawMarkers||[]).forEach(m=>fieldMap.removeLayer(m));
+ fieldDrawMarkers=fieldDrawPoints.map(p=>L.circleMarker([p.lat,p.lon],{radius:6,color:'#57534e',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(fieldMap));
+ if(fieldDrawLine){fieldMap.removeLayer(fieldDrawLine);fieldDrawLine=null;}
+ if(fieldDrawPoints.length>=2)fieldDrawLine=L.polyline(fieldDrawPoints.map(p=>[p.lat,p.lon]),{color:'#57534e',weight:2,dashArray:'6,6'}).addTo(fieldMap);
+}
+function cleanupFieldDrawLayer(){
+ if(fieldMap){(fieldDrawMarkers||[]).forEach(m=>fieldMap.removeLayer(m));if(fieldDrawLine)fieldMap.removeLayer(fieldDrawLine);}
+ fieldDrawMarkers=[];fieldDrawLine=null;fieldDrawPoints=[];
+}
+function finishFieldAreaDraw(){
+ if(fieldDrawPoints.length<3){alert('Mindestens 3 Punkte für das Suchgebiet nötig.');return;}
+ S.searchAreaPolygon=fieldDrawPoints.slice();
+ cleanupFieldDrawLayer();fieldDrawing=false;
+ save();stamp('Suchgebiet/Trümmergelände eingezeichnet');
+ renderFieldAreaPolygon();
+}
+function clearFieldAreaPolygon(){if(!confirm('Eingezeichnetes Suchgebiet/Trümmergelände löschen?'))return;S.searchAreaPolygon=[];save();renderFieldAreaPolygon();}
+function renderFieldAreaPolygon(){
+ if(!fieldMap)return;
+ if(fieldAreaLayer){fieldMap.removeLayer(fieldAreaLayer);fieldAreaLayer=null;}
+ if((S.searchAreaPolygon||[]).length>=3)fieldAreaLayer=L.polygon(S.searchAreaPolygon.map(p=>[p.lat,p.lon]),{color:'#78716c',weight:2,fillOpacity:.08}).addTo(fieldMap);
+}
+function parseTrackText(text,name){
+ let pts=[]; if(name.toLowerCase().endsWith('.gpx')){let xml=new DOMParser().parseFromString(text,'text/xml');[...xml.querySelectorAll('trkpt,rtept,wpt')].forEach(p=>{let lat=+p.getAttribute('lat'),lon=+p.getAttribute('lon');if(Number.isFinite(lat)&&Number.isFinite(lon))pts.push({lat,lon})});}
+ else if(name.toLowerCase().endsWith('.kml')){let xml=new DOMParser().parseFromString(text,'text/xml');[...xml.querySelectorAll('coordinates')].forEach(n=>n.textContent.trim().split(/\s+/).forEach(q=>{let [lon,lat]=q.split(',').map(Number);if(Number.isFinite(lat)&&Number.isFinite(lon))pts.push({lat,lon})}));}
+ else {let o=JSON.parse(text),a=Array.isArray(o)?o:(o.track||o.points||o.state?.track||[]);a.forEach(p=>{let lat=+(p.lat??p.latitude),lon=+(p.lon??p.lng??p.longitude);if(Number.isFinite(lat)&&Number.isFinite(lon))pts.push({lat,lon})});}
+ return pts;
+}
+function importDogTrackGeo(inp){
+ let f=inp.files[0];if(!f)return;let r=new FileReader;
+ r.onload=()=>{try{let pts=parseTrackText(r.result,f.name);if(pts.length<2)throw Error('Keine verwertbaren Trackpunkte');S.dogTrackGeo=pts;save();renderFieldDogTrack();stamp('Hundetrack (Datei) geladen',pts.length+' Punkte');alert('Hundetrack geladen: '+pts.length+' Punkte.');}catch(e){alert('Track konnte nicht gelesen werden: '+e.message)}};
+ r.readAsText(f);inp.value='';
+}
+function renderFieldDogTrack(){
+ if(!fieldMap)return;
+ if(fieldDogTrackLine){fieldMap.removeLayer(fieldDogTrackLine);fieldDogTrackLine=null;}
+ if((S.dogTrackGeo||[]).length>=2)fieldDogTrackLine=L.polyline(S.dogTrackGeo.map(p=>[p.lat,p.lon]),{color:'#7e22ce',weight:3}).addTo(fieldMap);
+}
+function drawRubbleMap(){let c=$('#rubbleMap');if(!c)return;let d=devicePixelRatio||1,w=c.clientWidth*d,h=420*d;c.width=w;c.height=h;let x=c.getContext('2d');x.clearRect(0,0,w,h);if(rubbleMapImage)x.drawImage(rubbleMapImage,0,0,w,h);else{x.fillStyle='#f5f5f4';x.fillRect(0,0,w,h);x.fillStyle='#57534e';x.font=`${14*d}px sans-serif`;x.fillText('Lagebild laden oder Gelände direkt einzeichnen',16*d,28*d)}
+ function paths(arr,color,width){(arr||[]).forEach(st=>{if(st.length<2)return;x.beginPath();x.strokeStyle=color;x.lineWidth=width*d;st.forEach((p,i)=>i?x.lineTo(p.x*w,p.y*h):x.moveTo(p.x*w,p.y*h));x.stroke()})}
+ paths(S.rubbleDrawing,'#292524',3);paths(S.dogMapTrack,'#7e22ce',4);
+ let m=S.rubbleMarks||{};
+ function dots(arr,color,label){(arr||[]).forEach((p,i)=>{x.beginPath();x.fillStyle=color;x.arc(p.x*w,p.y*h,9*d,0,Math.PI*2);x.fill();x.fillStyle='#111';x.font=`bold ${12*d}px sans-serif`;x.fillText(label+((arr.length>1)?' '+(i+1):''),p.x*w+12*d,p.y*h-8*d)})}
+ dots(m.estimate,'#dc2626','HF-Vermutung');dots(m.dogActual,'#f97316','Hund Anzeige');dots(m.actual,'#2563eb','VP');
+ let mw=+(S.mapWidthM||0),parts=[];
+ let est=m.estimate||[],dog=m.dogActual||[],act=m.actual||[];
+ if(est.length===1&&dog.length===1){let q=distMap(est[0],dog[0],w,h,mw);parts.push('HF-Einschätzung ↔ tatsächlicher Hund: '+(mw?q.toFixed(1)+' m':q.toFixed(1)+' % der Kartenbreite'))}
+ if(dog.length===1&&act.length===1){let q=distMap(dog[0],act[0],w,h,mw);parts.push('Hund bei Anzeige ↔ VP: '+(mw?q.toFixed(1)+' m':q.toFixed(1)+' % der Kartenbreite'))}
+ if(est.length===1&&act.length===1&&dog.length===0){let q=distMap(est[0],act[0],w,h,mw);parts.push('HF-Einschätzung ↔ VP: '+(mw?q.toFixed(1)+' m':q.toFixed(1)+' % der Kartenbreite'))}
+ if(act.length>1)parts.push(act.length+' VP-Positionen erfasst (automatischer Einzelvergleich nur bei je genau einer Markierung je Kategorie).');
+ act.forEach((p,i)=>{if(p.note)parts.push('VP'+(act.length>1?' '+(i+1):'')+': '+p.note)});
+ if(parts.length)parts.push('Die Werte dienen der Nachbesprechung; Geruchsaustritt und tatsächliche VP-Lage können auseinanderliegen.');let e=$('#rubbleCompare');if(e)e.textContent=parts.join(' · ')}
+function modeChanged(){S.mode=document.querySelector('[data-k="mode"]')?.value||S.mode||'Training';save();applyMode()}
+function applyMode(){let m=S.mode||'Training';$$('.training-only').forEach(e=>e.style.display=(m==='Training'||m==='Prüfung')?'':'none');$$('.deployment-only').forEach(e=>e.style.display=m==='Einsatz'?'':'none');$$('.exam-only').forEach(e=>e.style.display=m==='Prüfung'?'':'none')}
+function applyExamPreset(v){S.examPreset=v;if(v==='drk'){Object.assign(S,{examRule:'DRK 2024',examMinutes:'20',examArea:'800–2000',examPersons:'1–3 Verstecke / Anzahl VP unbekannt'});}else if(v==='iro'){let l=S.examLevel||'A',m={V:{min:'10',area:'400–600',vp:'1'},A:{min:'20',area:'800–1000',vp:'2'},B:{min:'30',area:'1200–1500',vp:'3'}}[l];Object.assign(S,{examRule:'FCI/IRO 2025 · RH-T '+l,examMinutes:m.min,examArea:m.area,examPersons:m.vp});}bind();save()}function rememberExamSettings(on){try{if(on)localStorage.setItem(KEY+':exam-defaults',JSON.stringify({examPreset:S.examPreset,examRule:S.examRule,examLevel:S.examLevel,examMinutes:S.examMinutes,examArea:S.examArea,examPersons:S.examPersons}));else localStorage.removeItem(KEY+':exam-defaults')}catch(e){}}function loadExamDefaults(){try{let d=JSON.parse(localStorage.getItem(KEY+':exam-defaults')||'null');if(d){for(const [k,v] of Object.entries(d))if(S[k]==null||S[k]==='')S[k]=v;let c=$('#rememberExam');if(c)c.checked=true}}catch(e){}}
+function examPresetPayload(){let data={};['examRule','examLevel','examMinutes','examArea','examPersons'].forEach(k=>data[k]=S[k]??'');return{format:'rhs-exam-preset',schemaVersion:1,discipline:'truemmer',createdAt:new Date().toISOString(),data}}
+function saveExamPresetFile(){let p=examPresetPayload(),blob=new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='RHS_Pruefungsvorgaben_truemmer_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(u)}
+function importExamPresetFile(inp){let f=inp.files&&inp.files[0];inp.value='';if(!f)return;let r=new FileReader();r.onload=()=>{try{let p=JSON.parse(r.result);if(p.format!=='rhs-exam-preset'||Number(p.schemaVersion)!==1)throw Error('Keine gültige RHS-Prüfungsvorlage.');if(p.discipline!=='truemmer')throw Error('Diese Vorlage gehört zur Sparte '+p.discipline+'.');for(const k of ['examRule','examLevel','examMinutes','examArea','examPersons'])if(p.data&&p.data[k]!==undefined)S[k]=p.data[k];S.examPreset='custom';bind();save();alert('Prüfungsvorgaben übernommen. Alle Werte bleiben änderbar.')}catch(e){alert(e.message||'Vorlage konnte nicht gelesen werden.')}};r.readAsText(f)}
+async function requestWeather(lat,lon,label){
+ let st=$('#weatherStatus');
+ try{
+  if(navigator.onLine===false)throw new Error('Kein Internet erkannt.');
+  if(st)st.textContent='Wetterdaten werden online abgerufen (DWD ICON via Open-Meteo) …';
+  const params=new URLSearchParams({latitude:String(lat),longitude:String(lon),models:'icon_seamless',current:'temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m',timezone:'auto'});
+  let r=await fetchTO(`https://api.open-meteo.com/v1/forecast?${params}`);
+  if(!r.ok)throw new Error('Wetterdienst nicht erreichbar.');
+  let j=await r.json(),w=j.current||{};
+  Object.assign(S,{weatherAt:new Date().toISOString(),weatherLat:lat,weatherLon:lon,wxTemp:w.temperature_2m??'',wxHumidity:w.relative_humidity_2m??'',wxWindDir:w.wind_direction_10m??'',wxWind:w.wind_speed_10m??'',wxGust:w.wind_gusts_10m??'',wxPrecip:w.precipitation??'',wxCode:w.weather_code??''});
+  save();bind();updateWeatherMapMarker(lat,lon);
+  if(st)st.textContent='Wetter übernommen'+(label?' · '+label:'')+' · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  stamp('Wetter am Startpunkt erfasst');
+  return true;
+ }catch(e){if(st)st.textContent='Wetterabruf fehlgeschlagen: '+(e.message||'unbekannter Fehler')+' Manuelle Eingabe bleibt möglich.';return false;}
+}
+function fetchWeather(){
+ let st=$('#weatherStatus');if(st)st.textContent='Standort wird ermittelt …';
+ if(!window.isSecureContext){if(st)st.textContent='Standortabruf ist auf diesem Gerät für lokal geöffnete Dateien gesperrt (kein sicherer Kontext/HTTPS). Bitte Ort/PLZ verwenden oder „Verbindung prüfen“.';return;}
+ if(!navigator.geolocation){if(st)st.textContent='GPS wird von diesem Browser für diese Datei nicht bereitgestellt. Bitte Ort/PLZ verwenden.';return;}
+ navigator.geolocation.getCurrentPosition(p=>requestWeather(p.coords.latitude,p.coords.longitude,'GPS-Standort'),e=>{if(st)st.textContent='GPS-Standort nicht verfügbar ('+(e&&e.message?e.message:'keine Freigabe')+'). Bitte Ort/PLZ verwenden.';},{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+}
+async function fetchWeatherByPlace(){
+ let st=$('#weatherStatus'),el=$('#weatherPlace'),raw=(el&&el.value||'').trim();
+ if(!raw){if(st)st.textContent='Bitte Ort oder PLZ eingeben.';return;}
+ try{
+  if(navigator.onLine===false)throw new Error('Kein Internet erkannt.');
+  if(st)st.textContent='Ort wird gesucht …';
+  let candidates=[];
+  let zip=(raw.match(/\b\d{5}\b/)||[])[0];
+  let place=raw.replace(/\b\d{5}\b/g,' ').replace(/[,;]/g,' ').replace(/\s+/g,' ').trim();
+  if(zip)candidates.push(zip); if(place)candidates.push(place); candidates.push(raw);
+  let seen=new Set(),found=null;
+  for(const q of candidates){if(!q||seen.has(q.toLowerCase()))continue;seen.add(q.toLowerCase());const u='https://geocoding-api.open-meteo.com/v1/search?'+new URLSearchParams({name:q,count:'10',language:'de',format:'json',countryCode:'DE'});let r=await fetchTO(u);if(!r.ok)continue;let j=await r.json(),a=j.results||[];if(zip){let exact=a.find(x=>String(x.postcodes||'').includes(zip)||String(x.postcode||'')===zip);if(exact){found=exact;break;}}if(a.length){found=a[0];break;}}
+  if(!found)throw new Error('Ort/PLZ wurde nicht gefunden.');
+  await requestWeather(found.latitude,found.longitude,[found.name,found.admin1].filter(Boolean).join(', '));
+ }catch(e){if(st)st.textContent='Ortssuche/Wetter fehlgeschlagen: '+(e.message||'unbekannter Fehler')+' Bitte Internet prüfen oder Werte manuell eintragen.';}
+}
+function exportDeployment(){if((S.mode||'Training')!=='Einsatz')return alert('Die Übergabe an das Einsatzprotokoll ist nur im Modus Einsatz vorgesehen.');const pkg={bridgeFormat:'rhs-search-assistant-deployment',schemaVersion:1,discipline:'Trümmersuche',createdAt:new Date().toISOString(),sourceApp:'rh-truemmersuchassistent',state:S};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}));a.download='RHS_Einsatz_Truemmer_'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+function newCase(){if(!confirm('Neuen Vorgang starten?'))return;let sichern=confirm('Aktuellen Vorgang vorher als JSON sichern? OK = sichern, Abbrechen = ohne Sicherung fortfahren.');if(sichern)backup();let keep={team:S.team||'',dog:S.dog||''};S={version:3,mode:'Training',createdAt:new Date().toISOString(),events:[],track:[],finds:[],rubbleMarks:{estimate:[],dogActual:[],actual:[]},mapWidthM:'',rubbleDrawing:[],dogMapTrack:[],trackMode:'gps',timeTrack:[],searchStartAt:null,trackRunning:false,fieldSource:'photo',rubbleMarksGeo:{estimate:[],dogActual:[],actual:[]},searchAreaPolygon:[],dogTrackGeo:[],...keep};loadExamDefaults();save();location.reload()}
+function exportTraining(){const pkg={bridgeFormat:'rhs-truemmersuchassistent-export',schemaVersion:1,createdAt:new Date().toISOString(),sourceApp:'rh-truemmersuchassistent',state:S};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}));a.download='RHS_Truemmer_Training_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
+function backup(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({format:'rhs-truemmersuchassistent-backup',version:1,state:S},null,2)],{type:'application/json'}));a.download=KEY+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
+function restore(inp){let f=inp.files[0];if(!f)return;let r=new FileReader;r.onload=()=>{try{let o=JSON.parse(r.result);if(o.format!=='rhs-truemmersuchassistent-backup'||!o.state)throw new Error('Falsches Backup-Format');if(!confirm('Lokale Daten durch diese Sicherung ersetzen?'))return;S=o.state;if(save())location.reload();else setSaveStatus('Sicherung gelesen, aber localStorage konnte nicht geschrieben werden. Stand bleibt geöffnet; bitte JSON sichern.',true)}catch(e){alert('Ungültige JSON-Datei')}};r.readAsText(f)}
+function resetAll(){newCase()}
+function protocol(){window.print()}
+
+function calcRubble(){
+ let out=[], wind=S.wind||'unbekannt', st=S.chips?.scent||[], pat=S.chips?.pattern||[];
+ out.push('Vor Ansatz: sichere Grenzen, Zugänge, Tabuzonen und Rückzugsweg bestätigen.');
+ if(wind==='wechselnd'||wind==='ruhig')out.push('Luftbewegung ist wenig eindeutig: mehrere mögliche Geruchsaustritte vergleichen; nicht am ersten Geruchseindruck festlegen.');
+ if(st.includes('mehrere Austritte')||st.includes('Geruchspool')||st.includes('Austritt fern der Quelle'))out.push('Mikrolokalisierung bewusst beobachten: Hund Austritte vergleichen lassen und Quelle/Austritt möglichst präzise eingrenzen.');
+ if(pat.includes('Grobsuche'))out.push('Grobsuche zuerst zur schnellen Priorisierung; markierte Geruchsbereiche anschließend separat fein lokalisieren.');
+ out.push('Bei zunehmender Unsicherheit nur eine Schwierigkeit verändern und einen sauberen Wiederansatz planen.');
+ $('#rubbleAdvice').innerHTML='<b>Arbeitsplan</b><br>'+out.map(esc).join('<br>');
+}
+function addFind(lat,lon){
+ let note=prompt('Fundstelle / Anzeige kurz beschreiben:','');
+ if(note===null)return; let f={id:Date.now(),at:new Date().toISOString(),note,sector:prompt('Sektor/Position:','')||'',source:prompt('Geruchsaustritt / vermutete Quelle:','')||'',bark:prompt('Anzeige/Verbellen (nicht bewertet = leer lassen):','')||''};
+ if(typeof lat==='number'&&typeof lon==='number'){f.lat=lat;f.lon=lon;}
+ S.finds.push(f);save();stamp('Fund/Anzeige',note);renderFinds();renderFieldMapFinds();
+}
+function deleteFind(fid){if(!confirm('Fundstelle wirklich löschen?'))return;S.finds=(S.finds||[]).filter(f=>f.id!==fid);save();renderFinds();renderFieldMapFinds();}
+function renderFinds(){let e=$('#finds');if(!e)return;e.innerHTML=(S.finds||[]).map((f,i)=>`<div class="event"><b>Fund ${i+1} · ${new Date(f.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</b><br>${esc(f.note)}<br><span class="muted">${esc(f.sector)} · ${esc(f.source)} · ${esc(f.bark||'nicht bewertet')}${typeof f.lat==='number'?' · '+f.lat.toFixed(5)+', '+f.lon.toFixed(5):''}</span><br><button class="btn danger noprint" onclick="deleteFind(${f.id})">Löschen</button></div>`).join('')||'<p class="muted">Noch keine Fundstelle.</p>'}
+function initApp(){calcRubble();renderFinds();let c=$('#rubbleMap');if(c){c.addEventListener('click',rubbleClick);c.addEventListener('pointerdown',mapPointerDown);c.addEventListener('pointermove',mapPointerMove);c.addEventListener('pointerup',mapPointerUp);c.addEventListener('pointerleave',mapPointerUp);}let mw=$('#mapWidthM');if(mw)mw.value=S.mapWidthM||'';drawRubbleMap();updateTrackModeUI();resumeTracking();setFieldSource(S.fieldSource||'photo');}
+
+function refreshFromRecovered(){ $$('.chip').forEach(b=>b.classList.remove('on')); bind();loadChips();renderEvents();applyMode();drawTrack();if(typeof initApp==='function')initApp(); }
+loadExamDefaults();pages();bind();loadChips();renderEvents();applyMode();drawTrack();if(typeof initApp==='function')initApp();idbRecoverNewest(ok=>{if(ok)refreshFromRecovered()});
+
+if('serviceWorker' in navigator && window.isSecureContext){
+ window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+}
+</script></body></html>
