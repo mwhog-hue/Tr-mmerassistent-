@@ -1,14 +1,6 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RH Trümmersuchassistent · v2.1</title>
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#9a3412">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Trümmersuche">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--a:#9a3412;--bg:#f5f5f4;--card:#fff;--ink:#1c1917;--mut:#6b7280;--line:#d6d3d1}
 *{box-sizing:border-box}body{margin:0;font:15px system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--ink)}
@@ -91,7 +83,7 @@ label{display:block;font-size:12px;color:#57534e}input,select,textarea{width:100
 </div></div></section>
 <section data-page="Training"><div class="card training-only"><h2>Trainingsfortschritt</h2><div class="grid"><label>Start / Suchauftrag<select data-k="progStart"><option>nicht bewertet</option><option>1 – Aufbau</option><option>2 – mit deutlicher Hilfe</option><option>3 – wechselhaft</option><option>4 – sicher</option><option>5 – sehr sicher / selbstständig</option></select></label><label>Sucharbeit<select data-k="progSearch"><option>nicht bewertet</option><option>1 – Aufbau</option><option>2 – mit deutlicher Hilfe</option><option>3 – wechselhaft</option><option>4 – sicher</option><option>5 – sehr sicher / selbstständig</option></select></label><label>Auffinde-/Anzeigebereich<select data-k="progFind"><option>nicht bewertet</option><option>1 – Aufbau</option><option>2 – mit deutlicher Hilfe</option><option>3 – wechselhaft</option><option>4 – sicher</option><option>5 – sehr sicher / selbstständig</option></select></label></div></div></section>
 <section data-page="Abschluss"><div class="card"><h2>Nachbesprechung</h2><label>Was funktionierte?<textarea data-k="good" rows="3"></textarea></label><label>Nächstes Lernziel<textarea data-k="next" rows="3"></textarea></label><label>Sicherheits-/Taktikhinweise<textarea data-k="debrief" rows="3"></textarea></label>
-<div class="row noprint"><button class="btn" onclick="protocol()">Drucken / PDF</button><button class="btn training-only" onclick="exportTraining()">Für Trainingstagebuch exportieren</button><button class="btn deployment-only" onclick="exportDeployment()">An Einsatzprotokoll übergeben</button><button class="btn" onclick="backup()">JSON-Sicherung</button><label class="btn">Sicherung laden<input hidden type="file" accept=".json" onchange="restore(this)"></label><button class="btn" onclick="resetAll()">Neuer Vorgang</button></div></div></section>
+<div class="row noprint"><button class="btn" onclick="protocol()">Drucken / PDF</button><button class="btn training-only" onclick="exportTraining()">Für Trainingstagebuch exportieren</button><button class="btn deployment-only" onclick="exportDeployment()">An Einsatzprotokoll übergeben</button><button class="btn" onclick="rhsTeamExport()">Teamdaten exportieren</button><label class="btn">Teamdaten importieren<input hidden type="file" accept=".json,application/json" onchange="rhsTeamImport(this)"></label><button class="btn" onclick="backup()">JSON-Sicherung</button><label class="btn">Sicherung laden<input hidden type="file" accept=".json" onchange="restore(this)"></label><button class="btn" onclick="resetAll()">Neuer Vorgang</button></div><p id="rhsTeamInfo" style="font-size:.85em;opacity:.8;margin:6px 0 0"></p></div></section>
 </main>
 <script>
 const KEY="rhs-truemmersuchassistent-v1", $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -362,7 +354,7 @@ function modeChanged(){S.mode=document.querySelector('[data-k="mode"]')?.value||
 function applyMode(){let m=S.mode||'Training';$$('.training-only').forEach(e=>e.style.display=(m==='Training'||m==='Prüfung')?'':'none');$$('.deployment-only').forEach(e=>e.style.display=m==='Einsatz'?'':'none');$$('.exam-only').forEach(e=>e.style.display=m==='Prüfung'?'':'none')}
 function applyExamPreset(v){S.examPreset=v;if(v==='drk'){Object.assign(S,{examRule:'DRK 2024',examMinutes:'20',examArea:'800–2000',examPersons:'1–3 Verstecke / Anzahl VP unbekannt'});}else if(v==='iro'){let l=S.examLevel||'A',m={V:{min:'10',area:'400–600',vp:'1'},A:{min:'20',area:'800–1000',vp:'2'},B:{min:'30',area:'1200–1500',vp:'3'}}[l];Object.assign(S,{examRule:'FCI/IRO 2025 · RH-T '+l,examMinutes:m.min,examArea:m.area,examPersons:m.vp});}bind();save()}function rememberExamSettings(on){try{if(on)localStorage.setItem(KEY+':exam-defaults',JSON.stringify({examPreset:S.examPreset,examRule:S.examRule,examLevel:S.examLevel,examMinutes:S.examMinutes,examArea:S.examArea,examPersons:S.examPersons}));else localStorage.removeItem(KEY+':exam-defaults')}catch(e){}}function loadExamDefaults(){try{let d=JSON.parse(localStorage.getItem(KEY+':exam-defaults')||'null');if(d){for(const [k,v] of Object.entries(d))if(S[k]==null||S[k]==='')S[k]=v;let c=$('#rememberExam');if(c)c.checked=true}}catch(e){}}
 function examPresetPayload(){let data={};['examRule','examLevel','examMinutes','examArea','examPersons'].forEach(k=>data[k]=S[k]??'');return{format:'rhs-exam-preset',schemaVersion:1,discipline:'truemmer',createdAt:new Date().toISOString(),data}}
-function saveExamPresetFile(){let p=examPresetPayload(),blob=new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='RHS_Pruefungsvorgaben_truemmer_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(u)}
+function saveExamPresetFile(){let p=examPresetPayload(),blob=new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='RHS_Pruefungsvorgaben_truemmer_'+new Date().toISOString().slice(0,10)+'.json';rhsLadeHerunter(a);URL.revokeObjectURL(u)}
 function importExamPresetFile(inp){let f=inp.files&&inp.files[0];inp.value='';if(!f)return;let r=new FileReader();r.onload=()=>{try{let p=JSON.parse(r.result);if(p.format!=='rhs-exam-preset'||Number(p.schemaVersion)!==1)throw Error('Keine gültige RHS-Prüfungsvorlage.');if(p.discipline!=='truemmer')throw Error('Diese Vorlage gehört zur Sparte '+p.discipline+'.');for(const k of ['examRule','examLevel','examMinutes','examArea','examPersons'])if(p.data&&p.data[k]!==undefined)S[k]=p.data[k];S.examPreset='custom';bind();save();alert('Prüfungsvorgaben übernommen. Alle Werte bleiben änderbar.')}catch(e){alert(e.message||'Vorlage konnte nicht gelesen werden.')}};r.readAsText(f)}
 async function requestWeather(lat,lon,label){
  let st=$('#weatherStatus');
@@ -402,10 +394,10 @@ async function fetchWeatherByPlace(){
   await requestWeather(found.latitude,found.longitude,[found.name,found.admin1].filter(Boolean).join(', '));
  }catch(e){if(st)st.textContent='Ortssuche/Wetter fehlgeschlagen: '+(e.message||'unbekannter Fehler')+' Bitte Internet prüfen oder Werte manuell eintragen.';}
 }
-function exportDeployment(){if((S.mode||'Training')!=='Einsatz')return alert('Die Übergabe an das Einsatzprotokoll ist nur im Modus Einsatz vorgesehen.');const pkg={bridgeFormat:'rhs-search-assistant-deployment',schemaVersion:1,discipline:'Trümmersuche',createdAt:new Date().toISOString(),sourceApp:'rh-truemmersuchassistent',state:S};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}));a.download='RHS_Einsatz_Truemmer_'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+function exportDeployment(){if((S.mode||'Training')!=='Einsatz')return alert('Die Übergabe an das Einsatzprotokoll ist nur im Modus Einsatz vorgesehen.');const pkg={bridgeFormat:'rhs-search-assistant-deployment',schemaVersion:1,discipline:'Trümmersuche',createdAt:new Date().toISOString(),sourceApp:'rh-truemmersuchassistent',state:S};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}));a.download='RHS_Einsatz_Truemmer_'+new Date().toISOString().slice(0,10)+'.json';rhsLadeHerunter(a)}
 function newCase(){if(!confirm('Neuen Vorgang starten?'))return;let sichern=confirm('Aktuellen Vorgang vorher als JSON sichern? OK = sichern, Abbrechen = ohne Sicherung fortfahren.');if(sichern)backup();let keep={team:S.team||'',dog:S.dog||''};S={version:3,mode:'Training',createdAt:new Date().toISOString(),events:[],track:[],finds:[],rubbleMarks:{estimate:[],dogActual:[],actual:[]},mapWidthM:'',rubbleDrawing:[],dogMapTrack:[],trackMode:'gps',timeTrack:[],searchStartAt:null,trackRunning:false,fieldSource:'photo',rubbleMarksGeo:{estimate:[],dogActual:[],actual:[]},searchAreaPolygon:[],dogTrackGeo:[],...keep};loadExamDefaults();save();location.reload()}
-function exportTraining(){const pkg={bridgeFormat:'rhs-truemmersuchassistent-export',schemaVersion:1,createdAt:new Date().toISOString(),sourceApp:'rh-truemmersuchassistent',state:S};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}));a.download='RHS_Truemmer_Training_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
-function backup(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({format:'rhs-truemmersuchassistent-backup',version:1,state:S},null,2)],{type:'application/json'}));a.download=KEY+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
+function exportTraining(){const pkg={bridgeFormat:'rhs-truemmersuchassistent-export',schemaVersion:1,createdAt:new Date().toISOString(),sourceApp:'rh-truemmersuchassistent',state:S};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}));a.download='RHS_Truemmer_Training_'+new Date().toISOString().slice(0,10)+'.json';rhsLadeHerunter(a);}
+function backup(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({format:'rhs-truemmersuchassistent-backup',version:1,state:S},null,2)],{type:'application/json'}));a.download=KEY+'_'+new Date().toISOString().slice(0,10)+'.json';rhsLadeHerunter(a);}
 function restore(inp){let f=inp.files[0];if(!f)return;let r=new FileReader;r.onload=()=>{try{let o=JSON.parse(r.result);if(o.format!=='rhs-truemmersuchassistent-backup'||!o.state)throw new Error('Falsches Backup-Format');if(!confirm('Lokale Daten durch diese Sicherung ersetzen?'))return;S=o.state;if(save())location.reload();else setSaveStatus('Sicherung gelesen, aber localStorage konnte nicht geschrieben werden. Stand bleibt geöffnet; bitte JSON sichern.',true)}catch(e){alert('Ungültige JSON-Datei')}};r.readAsText(f)}
 function resetAll(){newCase()}
 function protocol(){window.print()}
@@ -432,7 +424,83 @@ function initApp(){calcRubble();renderFinds();let c=$('#rubbleMap');if(c){c.addE
 function refreshFromRecovered(){ $$('.chip').forEach(b=>b.classList.remove('on')); bind();loadChips();renderEvents();applyMode();drawTrack();if(typeof initApp==='function')initApp(); }
 loadExamDefaults();pages();bind();loadChips();renderEvents();applyMode();drawTrack();if(typeof initApp==='function')initApp();idbRecoverNewest(ok=>{if(ok)refreshFromRecovered()});
 
-if('serviceWorker' in navigator && window.isSecureContext){
- window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+/* ===== Ergänzung: robuste Downloads (C1/D5) und RHS-Teamdatenaustausch (B1) ===== */
+function rhsHinweis(text){
+  // Eigener, kurz eingeblendeter Hinweis – unabhängig von der Speicher-Statuszeile, die sonst sofort überschrieben wird.
+  let t=document.getElementById('rhsHinweis');
+  if(!t){ t=document.createElement('div'); t.id='rhsHinweis'; t.setAttribute('role','status');
+    t.style.cssText='position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:92vw;background:#1f3b2f;color:#fff;padding:10px 14px;border-radius:10px;font-size:.9rem;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:9999;transition:opacity .3s';
+    document.body.appendChild(t); }
+  t.textContent=text; t.style.opacity='1'; clearTimeout(t._timer); t._timer=setTimeout(()=>{ t.style.opacity='0'; }, 4500);
 }
+function rhsLadeHerunter(a){
+  // Verknüpfung kurz in die Seite einfügen (nötig für manche Browser), danach aufräumen und bestätigen.
+  try{ document.body.appendChild(a); a.click(); a.remove(); }catch(e){ try{ a.click(); }catch(_){} }
+  const url=a.href; setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 4000);
+  rhsHinweis('✓ Datei erstellt: '+(a.download||'Export')+' – bitte im Download-Ordner prüfen.');
+}
+const RHS_EXCHANGE_FORMAT='rhs-exchange', RHS_EXCHANGE_SCHEMA=2, RHS_APP_ID='rh-truemmersuchassistent', RHS_EIGENE_SPARTE='truemmer';
+const RHS_FELDER=['handler','dogName','dogBirthDate','dogBreed','unit','disciplines','indicationType'];
+function rhsUid(p){ try{ return p+'-'+crypto.randomUUID(); }catch(e){ return p+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10); } }
+function rhsSicher(){
+  const x = S.rhsExchange = (S.rhsExchange && typeof S.rhsExchange==='object') ? S.rhsExchange : {};
+  x.instanceId = x.instanceId || rhsUid('instance');
+  x.team = Object.assign({teamId:'',handler:'',dogName:'',dogBirthDate:'',dogBreed:'',unit:'',disciplines:[],indicationType:''}, x.team||{});
+  x.fieldMeta = (x.fieldMeta && typeof x.fieldMeta==='object') ? x.fieldMeta : {};
+  x.processedPackages = Array.isArray(x.processedPackages) ? x.processedPackages.slice(-200) : [];
+  return x;
+}
+function rhsTeamExport(){
+  const x=rhsSicher(); if(!x.team.teamId) x.team.teamId=rhsUid('team');
+  const team=JSON.parse(JSON.stringify(x.team));
+  team.disciplines = Array.isArray(team.disciplines)?team.disciplines:[];
+  if(!team.disciplines.includes(RHS_EIGENE_SPARTE)) team.disciplines.push(RHS_EIGENE_SPARTE);
+  save();
+  const pkg={rhsFormat:RHS_EXCHANGE_FORMAT,schemaVersion:RHS_EXCHANGE_SCHEMA,packageType:'team',packageId:rhsUid('pkg'),createdAt:new Date().toISOString(),
+    source:{app:RHS_APP_ID,instanceId:x.instanceId},records:[{type:'team',id:team.teamId,data:team,fieldMeta:JSON.parse(JSON.stringify(x.fieldMeta))}]};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}));
+  a.download='RHS_v2_Teamdaten_Truemmer_'+new Date().toISOString().slice(0,10)+'.json';
+  rhsLadeHerunter(a);
+}
+function rhsTeamImport(inp){
+  const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const p=JSON.parse(r.result);
+      if(!p||p.rhsFormat!==RHS_EXCHANGE_FORMAT) throw new Error('Keine RHS-Austauschdatei (Teamdaten).');
+      if(Number(p.schemaVersion)>RHS_EXCHANGE_SCHEMA) throw new Error('Neuere Austauschversion – hier noch nicht unterstützt.');
+      const rec=(p.records||[]).find(x=>x.type==='team'); if(!rec||!rec.data) throw new Error('Keine Team-Stammdaten enthalten.');
+      const x=rhsSicher();
+      if(p.packageId&&x.processedPackages.includes(p.packageId)){ alert('Diese Austauschdatei wurde bereits eingelesen. Es wurde nichts verändert.'); return; }
+      const d=rec.data;
+      const vorschau='Teamdaten übernehmen?\n\nHund: '+(d.dogName||'–')+' · Hundeführer/in: '+(d.handler||'–')+'\nRasse: '+(d.dogBreed||'–')+' · Geburtsdatum: '+(d.dogBirthDate||'–')+'\nHerkunft: '+((p.source&&p.source.app)||'unbekannt')
+        +(x.team.teamId&&rec.id&&x.team.teamId!==rec.id?'\n\n⚠ Die Datei stammt von einer anderen Team-ID. Nur übernehmen, wenn es sich um dasselbe reale Team handelt.':'');
+      if(!confirm(vorschau)) return;
+      let neu=0, akt=0, konfl=0;
+      RHS_FELDER.forEach(k=>{
+        if(d[k]===undefined) return;
+        let v=d[k]; if(k==='disciplines') v=Array.isArray(v)?v:String(v||'').split(/[,;\/]+/).map(t=>t.trim()).filter(Boolean);
+        const alt=x.team[k], leer=alt==null||alt===''||(Array.isArray(alt)&&!alt.length);
+        if(JSON.stringify(alt)===JSON.stringify(v)) return;
+        const im=(rec.fieldMeta||{})[k]||{revision:0}, lm=x.fieldMeta[k]||{revision:0};
+        if(leer || Number(im.revision||0)>Number(lm.revision||0)){ x.team[k]=v; x.fieldMeta[k]=im; leer?neu++:akt++; }
+        else if(Number(im.revision||0)===Number(lm.revision||0)){ konfl++; if(confirm('Konflikt bei „'+k+'“:\nLokal: '+alt+'\nImport: '+v+'\n\nImportwert übernehmen?')){ x.team[k]=v; x.fieldMeta[k]=Object.assign({},im,{revision:Number(lm.revision||0)+1}); akt++; } }
+      });
+      if(rec.id) x.team.teamId=rec.id;
+      if(p.packageId) x.processedPackages.push(p.packageId);
+      // Freitextfeld „Team“ nur füllen, wenn es noch leer ist – bestehende Eingaben bleiben unangetastet.
+      if(!S.team && (x.team.dogName||x.team.handler)){ S.team='Team '+(x.team.dogName||'')+(x.team.handler?' ('+x.team.handler+')':''); const el=document.querySelector('[data-k="team"]'); if(el) el.value=S.team; }
+      save(); rhsTeamAnzeigen();
+      alert('Teamdaten übernommen: '+neu+' neu, '+akt+' aktualisiert'+(konfl?', '+konfl+' Konflikt(e) geprüft':'')+'.');
+    }catch(e){ alert('Teamdaten konnten nicht übernommen werden: '+e.message+'\nDer vorhandene Stand bleibt unverändert.'); }
+  };
+  r.readAsText(f);
+}
+function rhsTeamAnzeigen(){
+  const el=document.getElementById('rhsTeamInfo'); if(!el) return; const t=rhsSicher().team;
+  el.textContent = (t.dogName||t.handler) ? ('Verknüpfte Teamdaten: '+[t.dogName,t.handler,t.dogBreed].filter(Boolean).join(' · ')) : 'Noch keine Teamdaten aus der RH-App-Familie übernommen.';
+}
+document.addEventListener('DOMContentLoaded',()=>{ try{ rhsTeamAnzeigen(); }catch(e){} });
 </script></body></html>
