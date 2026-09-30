@@ -1,7 +1,7 @@
 /* RH-Trümmersuchassistent – Service Worker: startet die App auch ohne Internet (z. B. im Funkloch).
    Die Daten liegen im lokalen Gerätespeicher, nicht in diesem Cache.
    Bei jeder neuen Version CACHE_VERSION erhöhen. */
-const CACHE_VERSION = 'truemmersuche-2.3.0';
+const CACHE_VERSION = 'truemmersuche-2.5.0';
 const DATEIEN = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 /* Kartenbibliothek (Leaflet): mitgespeichert, damit Wetter- und Online-Karte offline zumindest starten. Kacheln benötigen weiterhin Internet. */
 const BIBLIOTHEKEN = ['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js', 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css'];
